@@ -38,6 +38,20 @@ CREATE DATABASE order_processing_test;
    pip install -r requirements.txt
    ```
 
+## Environment Setup
+
+The repository includes a dist.env file with environment variables needed for the application. To set up your environment:
+
+1. Copy the dist.env file to create a .env file in the root folder:
+
+```bash
+cp dist.env .env
+```
+
+2. Edit the .env file and fill in the necessary values for each variable.
+
+3. The application will load these environment variables automatically when it starts.
+
 ## Running the Application
 
 1. First time setup: Create the tables by running:
