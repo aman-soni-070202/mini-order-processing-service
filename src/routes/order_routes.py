@@ -15,7 +15,7 @@ def create_order(order: schema.OrderCreate, db: Session = Depends(get_db)):
     return order_service.create_order(order)
 
 
-@order_router.get("/get_all_order", response_model=List[schema.OrderResponse])
+@order_router.get("/get_all_orders", response_model=List[schema.OrderResponse])
 def get_all_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     order_service = OrderService(db)
     return order_service.get_all_orders(skip, limit)

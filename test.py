@@ -66,7 +66,7 @@ def test_read_root(setup_test_db):
 
 # Product endpoint tests
 def test_get_products(setup_test_db):
-    response = client.get("/products/")
+    response = client.get("/products/get_all_products")
     assert response.status_code == 200
     products = response.json()
     assert len(products) == 5
@@ -76,20 +76,20 @@ def test_get_products(setup_test_db):
 
 def test_get_products_with_pagination(setup_test_db):
     # Test skip parameter
-    response = client.get("/products/?skip=2")
+    response = client.get("/products/get_all_products?skip=2")
     assert response.status_code == 200
     products = response.json()
     assert len(products) == 3  # 5 total - 2 skipped
     assert products[0]["name"] == "Test Product 3"
     
     # Test limit parameter
-    response = client.get("/products/?limit=2")
+    response = client.get("/products/get_all_products?limit=2")
     assert response.status_code == 200
     products = response.json()
     assert len(products) == 2
     
     # Test both skip and limit
-    response = client.get("/products/?skip=1&limit=2")
+    response = client.get("/products/get_all_products?skip=1&limit=2")
     assert response.status_code == 200
     products = response.json()
     assert len(products) == 2
@@ -99,7 +99,7 @@ def test_get_products_with_pagination(setup_test_db):
 
 def test_get_product(setup_test_db):
     # Get existing product
-    response = client.get("/products/1")
+    response = client.get("/products/get_product/1")
     assert response.status_code == 200
     product = response.json()
     assert product["name"] == "Test Product 1"
@@ -107,7 +107,7 @@ def test_get_product(setup_test_db):
     assert product["inventory"] == 20
     
     # Try to get non-existent product
-    response = client.get("/products/999")
+    response = client.get("/products/get_product/999")
     assert response.status_code == 404
     assert response.json()["detail"] == "Product not found"
 
@@ -120,7 +120,7 @@ def test_create_product(setup_test_db):
         "price": 15.99,
         "inventory": 25
     }
-    response = client.post("/products/", json=product_data)
+    response = client.post("/products/add_product", json=product_data)
     assert response.status_code == 201
     product = response.json()
     assert product["name"] == "New Product"
@@ -128,7 +128,7 @@ def test_create_product(setup_test_db):
     assert product["inventory"] == 25
     
     # Verify product was added to database
-    response = client.get("/products/")
+    response = client.get("/products/get_all_products")
     assert len(response.json()) == 6
     
     # Test invalid product data
@@ -136,7 +136,7 @@ def test_create_product(setup_test_db):
         "name": "Invalid Product",
         "description": "Missing price and inventory"
     }
-    response = client.post("/products/", json=invalid_product)
+    response = client.post("/products/add_product", json=invalid_product)
     assert response.status_code == 422  # Validation error
     
     # Test negative price
@@ -146,7 +146,7 @@ def test_create_product(setup_test_db):
         "price": -10.0,
         "inventory": 5
     }
-    response = client.post("/products/", json=invalid_product)
+    response = client.post("/products/add_product", json=invalid_product)
     assert response.status_code == 422  # Validation error
     
     # Test negative inventory
@@ -156,7 +156,7 @@ def test_create_product(setup_test_db):
         "price": 10.0,
         "inventory": -5
     }
-    response = client.post("/products/", json=invalid_product)
+    response = client.post("/products/add_product", json=invalid_product)
     assert response.status_code == 422  # Validation error
 
 
@@ -164,67 +164,67 @@ def test_create_product(setup_test_db):
 def test_update_inventory_add(setup_test_db):
     """Test adding inventory to a product"""
     # First, get current inventory
-    response = client.get("/products/1")
+    response = client.get("/products/get_product/1")
     assert response.status_code == 200
     initial_inventory = response.json()["inventory"]
     
     # Add 10 to inventory
     update_data = {"quantity": 10}
-    response = client.patch("/products/1/inventory", json=update_data)
+    response = client.patch("/products/update_product_inventory/1", json=update_data)
     
     # Check response
     assert response.status_code == 200
     assert response.json()["inventory"] == initial_inventory + 10
     
     # Verify the update persisted
-    response = client.get("/products/1")
+    response = client.get("/products/get_product/1")
     assert response.json()["inventory"] == initial_inventory + 10
 
 
 def test_update_inventory_remove(setup_test_db):
     """Test removing inventory from a product"""
     # First, get current inventory
-    response = client.get("/products/1")
+    response = client.get("/products/get_product/1")
     assert response.status_code == 200
     initial_inventory = response.json()["inventory"]
     
     # Remove 5 from inventory
     update_data = {"quantity": -5}
-    response = client.patch("/products/1/inventory", json=update_data)
+    response = client.patch("/products/update_product_inventory/1", json=update_data)
     
     # Check response
     assert response.status_code == 200
     assert response.json()["inventory"] == initial_inventory - 5
     
     # Verify the update persisted
-    response = client.get("/products/1")
+    response = client.get("/products/get_product/1")
     assert response.json()["inventory"] == initial_inventory - 5
 
 
 def test_update_inventory_invalid(setup_test_db):
     """Test removing more inventory than available"""
     # First, get current inventory
-    response = client.get("/products/1")
+    response = client.get("/products/get_product/1")
     assert response.status_code == 200
     initial_inventory = response.json()["inventory"]
     
     # Try to remove more than available
     update_data = {"quantity": -(initial_inventory + 10)}
-    response = client.patch("/products/1/inventory", json=update_data)
+    response = client.patch("/products/update_product_inventory/1", json=update_data)
     
     # Check error response
     assert response.status_code == 400
     assert "Cannot reduce inventory below zero" in response.json()["detail"]
     
     # Verify inventory wasn't changed
-    response = client.get("/products/1")
+    response = client.get("/products/get_product/1")
     assert response.json()["inventory"] == initial_inventory
 
 
 def test_update_inventory_nonexistent_product(setup_test_db):
     """Test updating inventory for a product that doesn't exist"""
     update_data = {"quantity": 10}
-    response = client.patch("/products/999/inventory", json=update_data)
+    response = client.patch("/products/update_product_inventory/999", json=update_data)
     
     # Check error response
     assert response.status_code == 404
@@ -235,9 +235,9 @@ def test_update_inventory_validation(setup_test_db):
     """Test inventory update validation"""
     # Missing quantity field
     update_data = {}
-    response = client.patch("/products/1/inventory", json=update_data)
+    response = client.patch("/products/update_product_inventory/1", json=update_data)
     assert response.status_code == 422  # Validation error
-    
+
 
 # Order endpoint tests
 def test_create_order_no_discount_with_shipping(setup_test_db):
@@ -250,7 +250,7 @@ def test_create_order_no_discount_with_shipping(setup_test_db):
             {"product_id": 3, "quantity": 3}
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 201
     data = response.json()
     
@@ -266,10 +266,10 @@ def test_create_order_no_discount_with_shipping(setup_test_db):
     assert not any(item["discount_applied"] for item in data["items"])
     
     # Check inventory was updated
-    response = client.get("/products/1")
+    response = client.get("/products/get_product/1")
     assert response.json()["inventory"] == 18  # 20 - 2
     
-    response = client.get("/products/3")
+    response = client.get("/products/get_product/3")
     assert response.json()["inventory"] == 47  # 50 - 3
 
 
@@ -283,7 +283,7 @@ def test_create_order_with_bulk_discount_no_shipping(setup_test_db):
             {"product_id": 2, "quantity": 1}
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 201
     data = response.json()
     
@@ -304,10 +304,10 @@ def test_create_order_with_bulk_discount_no_shipping(setup_test_db):
     assert not data["items"][1]["discount_applied"]
     
     # Verify inventory updates
-    response = client.get("/products/1")
+    response = client.get("/products/get_product/1")
     assert response.json()["inventory"] == 14  # 20 - 6
     
-    response = client.get("/products/2")
+    response = client.get("/products/get_product/2")
     assert response.json()["inventory"] == 14  # 15 - 1
 
 
@@ -320,7 +320,7 @@ def test_create_order_expensive_item_no_shipping(setup_test_db):
             {"product_id": 4, "quantity": 1}  # Luxury item at $100
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 201
     data = response.json()
     
@@ -338,7 +338,7 @@ def test_create_order_bulk_item_with_discount(setup_test_db):
             {"product_id": 5, "quantity": 30}  # 30 bulk items at $2.50 each
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 201
     data = response.json()
     
@@ -359,12 +359,12 @@ def test_create_order_insufficient_inventory(setup_test_db):
             {"product_id": 2, "quantity": 20}  # Product 2 only has 15 in inventory
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 400
     assert "Not enough inventory" in response.json()["detail"]
     
     # Verify inventory wasn't changed
-    response = client.get("/products/2")
+    response = client.get("/products/get_product/2")
     assert response.json()["inventory"] == 15  # Still 15
 
 
@@ -377,7 +377,7 @@ def test_create_order_nonexistent_product(setup_test_db):
             {"product_id": 999, "quantity": 1}  # Product doesn't exist
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 404
     assert "not found" in response.json()["detail"]
 
@@ -392,7 +392,7 @@ def test_create_order_validation(setup_test_db):
             {"product_id": 1, "quantity": 1}
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 422  # Validation error
     
     # Missing customer name
@@ -402,7 +402,7 @@ def test_create_order_validation(setup_test_db):
             {"product_id": 1, "quantity": 1}
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 422  # Validation error
     
     # Zero quantity
@@ -413,7 +413,7 @@ def test_create_order_validation(setup_test_db):
             {"product_id": 1, "quantity": 0}
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 422  # Validation error
     
     # Negative quantity
@@ -424,7 +424,7 @@ def test_create_order_validation(setup_test_db):
             {"product_id": 1, "quantity": -1}
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 422  # Validation error
 
 
@@ -442,11 +442,11 @@ def test_get_orders(setup_test_db):
         "items": [{"product_id": 2, "quantity": 2}]
     }
     
-    client.post("/orders/", json=order_data_1)
-    client.post("/orders/", json=order_data_2)
+    client.post("/orders/add_order", json=order_data_1)
+    client.post("/orders/add_order", json=order_data_2)
     
     # Now get all orders
-    response = client.get("/orders/")
+    response = client.get("/orders/get_all_orders")
     assert response.status_code == 200
     orders = response.json()
     assert len(orders) == 2
@@ -454,13 +454,13 @@ def test_get_orders(setup_test_db):
     assert orders[1]["customer_name"] == "Customer Two"
     
     # Test pagination
-    response = client.get("/orders/?skip=1")
+    response = client.get("/orders/get_all_orders?skip=1")
     assert response.status_code == 200
     orders = response.json()
     assert len(orders) == 1
     assert orders[0]["customer_name"] == "Customer Two"
     
-    response = client.get("/orders/?limit=1")
+    response = client.get("/orders/get_all_orders?limit=1")
     assert response.status_code == 200
     orders = response.json()
     assert len(orders) == 1
@@ -478,12 +478,12 @@ def test_get_order(setup_test_db):
             {"product_id": 2, "quantity": 2}
         ]
     }
-    response = client.post("/orders/", json=order_data)
+    response = client.post("/orders/add_order", json=order_data)
     assert response.status_code == 201
     order_id = response.json()["id"]
     
     # Now get the order
-    response = client.get(f"/orders/{order_id}")
+    response = client.get(f"/orders/get_order/{order_id}")
     assert response.status_code == 200
     order = response.json()
     assert order["customer_name"] == "Test Customer"
@@ -491,6 +491,6 @@ def test_get_order(setup_test_db):
     assert len(order["items"]) == 2
     
     # Try to get non-existent order
-    response = client.get("/orders/999")
+    response = client.get("/orders/get_order/999")
     assert response.status_code == 404
     assert response.json()["detail"] == "Order not found"
